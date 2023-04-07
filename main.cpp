@@ -29,9 +29,9 @@ int write_i = 0;
 
 atomic_bool done_flag;
 
-#define SING_TEST_NUM 1000000
+#define SING_TEST_NUM 7000000
 #define  THREAD_NUM 5
-#define THREAD_SEND_NUM 100000
+#define THREAD_SEND_NUM 700000
 
 long long getCurrentTime()
 {

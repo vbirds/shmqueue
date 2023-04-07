@@ -169,8 +169,8 @@ private:
     };
 private:
     stMemTrunk *m_stMemTrunk;
-    CShmRWlock *m_pBeginLock;  //m_iBegin 锁
-    CShmRWlock *m_pEndLock; //m_iEnd
+    PthreadRWlock *m_pBeginLock;  //m_iBegin 锁
+    PthreadRWlock *m_pEndLock; //m_iEnd
     BYTE *m_pQueueAddr;
     void * m_pShm;
 };

@@ -59,13 +59,63 @@ protected:
     key_t m_iSemKey;
 };
 
+
+
+class PthreadRWlock {
+public:
+
+    PthreadRWlock() {
+            pthread_rwlockattr_t rwattr;
+            pthread_rwlockattr_init(&rwattr);
+            pthread_rwlockattr_setpshared(&rwattr, PTHREAD_PROCESS_SHARED);
+            pthread_rwlock_init(&m_lock, &rwattr);
+    }
+    ~PthreadRWlock() {
+        pthread_rwlock_destroy(&m_lock);
+    }
+
+    //读锁
+    int Rlock() {
+        return pthread_rwlock_rdlock(&m_lock);
+    }
+    //释放读锁
+    int UnRlock() {
+        return pthread_rwlock_unlock(&m_lock);
+    }
+    /**
+     * TryRlock
+     * @return  true lock ok,false lock failed
+     */
+    bool TryRlock() {
+        return pthread_rwlock_tryrdlock(&m_lock) == 0;
+    }
+    //写锁
+    int Wlock()  {
+        return pthread_rwlock_wrlock(&m_lock);
+    }
+    //释放写锁
+    int UnWlock() {
+        return pthread_rwlock_unlock(&m_lock);
+    }
+    /**
+    * TryRlock
+    * @return  true lock ok,false lock failed
+    */
+    bool TryWlock() {
+        return pthread_rwlock_trywrlock(&m_lock) == 0;
+    }
+
+private:
+    pthread_rwlock_t m_lock;
+};
+
 class CSafeShmRlock
 {
 public:
     CSafeShmRlock() : m_pLock(NULL)
     {
     }
-    CSafeShmRlock(CShmRWlock *pLock)
+    CSafeShmRlock(PthreadRWlock *pLock)
         : m_pLock(pLock)
     {
         if (m_pLock != NULL)
@@ -74,7 +124,7 @@ public:
         }
     }
 
-    void InitLock(CShmRWlock *pLock)
+    void InitLock(PthreadRWlock *pLock)
     {
         m_pLock = pLock;
         m_pLock->Rlock();
@@ -85,7 +135,8 @@ public:
         m_pLock->UnRlock();
     }
 private:
-    CShmRWlock *m_pLock;
+//    CShmRWlock *m_pLock;
+    PthreadRWlock *m_pLock;
 };
 
 class CSafeShmWlock
@@ -96,13 +147,13 @@ public:
     {
 
     }
-    CSafeShmWlock(CShmRWlock *pLock)
+    CSafeShmWlock(PthreadRWlock *pLock)
         : m_pLock(pLock)
     {
         m_pLock->Wlock();
     }
 
-    void InitLock(CShmRWlock *pLock)
+    void InitLock(PthreadRWlock *pLock)
     {
         m_pLock = pLock;
         m_pLock->Wlock();
@@ -117,7 +168,8 @@ public:
         }
     }
 private:
-    CShmRWlock *m_pLock;
+//    CShmRWlock *m_pLock;
+    PthreadRWlock *m_pLock;
 };
 }
 #endif //SHMQUEUE_SHM_RWLOCK_H

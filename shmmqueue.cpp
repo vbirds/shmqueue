@@ -311,11 +311,13 @@ unsigned int CMessageQueue::GetQueueLength()
 void CMessageQueue::InitLock()
 {
     if (IsBeginLock()) {
-        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 1));
+//        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 1));
+        m_pBeginLock = new PthreadRWlock();
     }
 
     if (IsEndLock()) {
-        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 2));
+//        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 2));
+        m_pEndLock = new PthreadRWlock();
     }
 }
 
