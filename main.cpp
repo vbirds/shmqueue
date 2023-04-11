@@ -19,13 +19,13 @@ using namespace shmmqueue;
 
 using namespace std;
 
-std::atomic_int read_count;
+std::atomic_int64_t read_count;
 
-std::atomic_int write_count;
+std::atomic_int64_t write_count;
 
-int read_i = 0;
+int64_t read_i = 0;
 
-int write_i = 0;
+int64_t write_i = 0;
 
 atomic_bool done_flag;
 
@@ -167,6 +167,7 @@ void SingleRWTest()
     printf("Read read_count %d \n", read_i);
     printf("Write write_count %d \n", write_i);
     if (read_i == write_i) {
+        printf("SingleRWTest speed: %ld/s\n", read_i * 1000 / (end - begin));
         printf("SingleRWTest ok %d \n");
     }
     else {
@@ -206,6 +207,7 @@ void MulRWTest()
     printf("Read read_count %d \n", read_count.load());
     printf("Write write_count %d \n", write_count.load());
     if (read_count.load() == write_count.load()) {
+        printf("MulRWTest speed: %ld/s\n", write_count * 1000 / (end - begin));
         printf("MulRWTest ok\n");
     }
     else {

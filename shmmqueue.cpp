@@ -10,11 +10,13 @@
 #include <sys/shm.h>
 #include <cmath>
 #include "shmmqueue.h"
+#include "shm_lock.h"
 
 namespace shmmqueue
 {
-CMessageQueue::CMessageQueue(BYTE *pCurrAddr, eQueueModel module, key_t shmKey, int shmId, size_t size)
+CMessageQueue::CMessageQueue( enShmModule shmModule, BYTE *pCurrAddr, eQueueModel module, key_t shmKey, int shmId, size_t size)
 {
+    m_shmModule = shmModule;
     m_pShm = (void*) pCurrAddr;
     m_pQueueAddr = pCurrAddr;
     m_stMemTrunk = new (m_pQueueAddr) stMemTrunk();
@@ -34,14 +36,6 @@ CMessageQueue::~CMessageQueue()
         DestroyShareMem(m_pShm,m_stMemTrunk->m_iShmKey);
         m_stMemTrunk->~stMemTrunk();
     }
-    if (m_pBeginLock) {
-        delete m_pBeginLock;
-        m_pBeginLock = NULL;
-    }
-    if (m_pEndLock) {
-        delete m_pEndLock;
-        m_pEndLock = NULL;
-    }
 }
 
 int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
@@ -50,10 +44,10 @@ int CMessageQueue::SendMessage(BYTE *message, MESS_SIZE_TYPE length)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    CSafeShmWlock tmLock;
+    CAutoLock tmLock;
     //修改共享内存写锁
-    if (IsEndLock() && m_pEndLock) {
-        tmLock.InitLock(m_pEndLock);
+    if (IsEndLock()) {
+        tmLock.InitLock(&m_stMemTrunk->m_end_lock);
     }
 
     // 首先判断是否队列已满
@@ -103,10 +97,10 @@ int CMessageQueue::GetMessage(BYTE *pOutCode)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    CSafeShmWlock tmLock;
+    CAutoLock tmLock;
     //修改共享内存写锁
-    if (IsBeginLock() && m_pBeginLock) {
-        tmLock.InitLock(m_pBeginLock);
+    if (IsBeginLock()) {
+        tmLock.InitLock(&m_stMemTrunk->m_begin_lock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -167,10 +161,10 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
         return (int) eQueueErrorCode::QUEUE_PARAM_ERROR;
     }
 
-    CSafeShmRlock tmLock;
+    CAutoLock tmLock;
     //修改共享内存写锁
-    if (IsBeginLock() && m_pBeginLock) {
-        tmLock.InitLock(m_pBeginLock);
+    if (IsBeginLock()) {
+        tmLock.InitLock(&m_stMemTrunk->m_begin_lock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -223,10 +217,10 @@ int CMessageQueue::ReadHeadMessage(BYTE *pOutCode)
   * */
 int CMessageQueue::DeleteHeadMessage()
 {
-    CSafeShmWlock tmLock;
+    CAutoLock tmLock;
     //修改共享内存写锁
-    if (IsBeginLock() && m_pBeginLock) {
-        tmLock.InitLock(m_pBeginLock);
+    if (IsBeginLock()) {
+        tmLock.InitLock(&m_stMemTrunk->m_begin_lock);
     }
 
     int nTempMaxLength = GetDataSize();
@@ -310,14 +304,15 @@ unsigned int CMessageQueue::GetQueueLength()
 
 void CMessageQueue::InitLock()
 {
-    if (IsBeginLock()) {
-//        m_pBeginLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 1));
-        m_pBeginLock = new PthreadRWlock();
-    }
-
-    if (IsEndLock()) {
-//        m_pEndLock = new CShmRWlock((key_t) (m_stMemTrunk->m_iShmKey + 2));
-        m_pEndLock = new PthreadRWlock();
+    if (m_shmModule == enShmModule::SHM_INIT)
+    {
+        memset(&m_stMemTrunk->m_begin_lock, 0, sizeof(pthread_mutex_t));
+        memset(&m_stMemTrunk->m_end_lock, 0, sizeof(pthread_mutex_t));
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+        pthread_mutex_init(&m_stMemTrunk->m_begin_lock, &attr);
+        pthread_mutex_init(&m_stMemTrunk->m_end_lock, &attr);
     }
 }
 
@@ -488,7 +483,7 @@ CMessageQueue *CMessageQueue::CreateInstance(key_t shmkey,
     enShmModule shmModule;
     int shmId = 0;
     BYTE * tmpMem = CMessageQueue::CreateShareMem(shmkey, queuesize + sizeof(stMemTrunk), shmModule,shmId);
-    CMessageQueue *messageQueue = new CMessageQueue(tmpMem,queueModule, shmkey,shmId, queuesize);
+    CMessageQueue *messageQueue = new CMessageQueue(shmModule, tmpMem,queueModule, shmkey,shmId, queuesize);
     messageQueue->PrintTrunk();
     return messageQueue;
 }

@@ -9,7 +9,6 @@
 #define messagequeue_h
 
 #include <iostream>
-#include "shm_rwlock.h"
 
 #define EXTRA_BYTE 8
 #define MESS_SIZE_TYPE size_t
@@ -70,7 +69,7 @@ private:
      * @param size 如果传入的size != 2^n,size 会初始化为>size的最小的2^n的数
      * 例如　2^n-1 < size < 2^n,则MessageQueue被初始化为2^n
      */
-    CMessageQueue(BYTE *pCurrAddr,eQueueModel module, key_t shmKey, int shmId,size_t size);
+    CMessageQueue( enShmModule shmModule, BYTE *pCurrAddr,eQueueModel module, key_t shmKey, int shmId,size_t size);
 public:
     ~CMessageQueue();
     CMessageQueue(const CMessageQueue &) = delete;
@@ -165,12 +164,15 @@ private:
         char __cache_padding4__[CACHE_LINE_SIZE];
         int m_iShmId;
         char __cache_padding5__[CACHE_LINE_SIZE];
+        pthread_mutex_t m_begin_lock;
+        char __cache_padding6__[CACHE_LINE_SIZE];
+        pthread_mutex_t m_end_lock;
+        char __cache_padding7__[CACHE_LINE_SIZE];
         eQueueModel m_eQueueModule;
     };
 private:
+    enShmModule m_shmModule;
     stMemTrunk *m_stMemTrunk;
-    PthreadRWlock *m_pBeginLock;  //m_iBegin 锁
-    PthreadRWlock *m_pEndLock; //m_iEnd
     BYTE *m_pQueueAddr;
     void * m_pShm;
 };
